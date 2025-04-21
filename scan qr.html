@@ -102,7 +102,65 @@
   function salinClipboard() {
   const json = JSON.stringify(daftarProduk, null, 2);
   if (window.Android && window.Android.simpanData) {
-    window.Android.simpanData(json);
+    windowasync function salinClipboard() {
+  const token = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // <- Ganti dengan token GitHub kamu
+  const username = "Sahalarbani";
+  const repo = "mxc";
+  const path = "data-barang.js";
+
+  const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${path}`;
+
+  // Ambil data sekarang
+  const res = await fetch(apiUrl, {
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github.v3+json",
+    },
+  });
+
+  if (!res.ok) {
+    alert("Gagal ambil data dari GitHub.");
+    return;
+  }
+
+  const fileData = await res.json();
+  const sha = fileData.sha;
+  const currentContent = atob(fileData.content);
+  let currentJson = {};
+
+  try {
+    currentJson = eval("(" + currentContent + ")");
+  } catch (e) {
+    alert("Gagal parse data lama.");
+    return;
+  }
+
+  // Merge dengan data baru
+  const newData = daftarProduk;
+  const merged = { ...currentJson, ...newData };
+  const finalContent = "const data = " + JSON.stringify(merged, null, 2) + ";";
+
+  // Push ke GitHub
+  const updateRes = await fetch(apiUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github.v3+json",
+    },
+    body: JSON.stringify({
+      message: "Update data-barang.js via barcode scanner",
+      content: btoa(unescape(encodeURIComponent(finalContent))),
+      sha: sha,
+    }),
+  });
+
+  if (updateRes.ok) {
+    alert("Berhasil update data-barang.js!");
+  } else {
+    alert("Gagal update file ke GitHub.");
+    console.error(await updateRes.text());
+  }
+}.Android.simpanData(json);
     alert("Data disimpan ke data-barang.js!");
   } else {
     alert("Fungsi penyimpanan tidak tersedia.");
