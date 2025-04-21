@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Pembuat Struk + Scan Barcode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: monospace;
+      background: #f2f2f2;
+      padding: 10px;
+      margin: 0;
+    }
+    .container {
+      max-width: 100%;
+      margin: auto;
+      background: #fff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .item-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    .item-row input {
+      flex: 1 1 30%;
+      min-width: 100px;
+    }
+    .item-row button {
+      flex: 1 1 auto;
+      padding: 10px;
+      font-weight: bold;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+   #strukPreview {
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  background-color: #eef6ff;
+  padding: 10px;
+  border: 1px dashed #aaa;
+  margin-top: 10px;
+}
+
+    #scanner {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .btn-group button {
+      flex: 1 1 48%;
+    }
+    @media (max-width: 480px) {
+      .item-row input,
+      .btn-group button {
+        flex: 1 1 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Pembuat Struk + Barcode Scanner</h2>
+    <input type="text" id="namaToko" placeholder="Nama Toko" value="DREAM LIGHT TECHNOLOGY" oninput="buatStruk()">
+    <input type="text" id="alamatToko" placeholder="Alamat Toko" value="Jl. Pahlawan No.32" oninput="buatStruk()">
+    <input type="text" id="namaKasir" placeholder="Nama Kasir" value="Sahal Arbani" oninput="buatStruk()">
+    <button onclick="mulaiScan()">Scan Barcode</button>
+    <div id="scanner"></div>
+    <div id="items"></div>
+    <button onclick="tambahItem()">+ Tambah Item Manual</button>
+    <input type="number" id="tunai" placeholder="Jumlah Tunai" oninput="buatStruk()">
+    <div class="btn-group">
+      <button onclick="buatStruk()">Buat Struk</button>
+      <button onclick="downloadPDF()">Download PDF</button>
+      <button onclick="printStrukBluetooth()">Cetak ke Printer Bluetooth</button>
+      <button onclick="copyToClipboard()">copy to clipboard</button>
+<button onclick="window.location.href='scan qr.html'">Input data</button>
+      <button onclick="resetAll()">Reset Semua</button>
+    </div>
+    <div id="strukPreview"></div>
+  </div>
+
+<script>
+  
+
+
+  let itemId = 0;
+
+  function tambahItem(barang = '', jumlah = '', harga = '') {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.dataset.id = itemId++;
+    div.innerHTML = `
+      <input type="text" placeholder="Barang" class="barang" value="${barang}" oninput="buatStruk()">
+      <input type="number" placeholder="Jumlah" class="jumlah" value="${jumlah}" oninput="buatStruk()">
+      <input type="number" placeholder="Harga" class="harga" value="${harga}" oninput="buatStruk()">
+      <button onclick="hapusItem(this)">×</button>
+    `;
+    document.getElementById('items').appendChild(div);
+    buatStruk();
+  }
+
+  function hapusItem(button) {
+    button.parentElement.remove();
+    buatStruk();
+  }
+
+  function buatStruk() {
+  const now = new Date();
+  const tanggal = now.toLocaleDateString('id-ID');
+  const jam = now.toTimeString().split(' ')[0].slice(0, 5);
+
+  const namaToko = document.getElementById('namaToko').value;
+  const alamat = document.getElementById('alamatToko').value;
+  const kasir = document.getElementById('namaKasir').value;
+  const tunai = parseInt(document.getElementById('tunai').value || 0);
+
+  const barangEls = document.querySelectorAll('.barang');
+  const jumlahEls = document.querySelectorAll('.jumlah');
+  const hargaEls = document.querySelectorAll('.harga');
+
+  const garis = '-'.repeat(30);
+  const garisTebal = '='.repeat(30);
+  let struk = '';
+
+  struk += `${namaToko.toUpperCase()}\n`;
+  struk += `${alamat}\n`;
+  struk += `${garisTebal}\n`;
+  struk += `Tgl: ${tanggal} ${jam}\n`;
+  struk += `Kasir: ${kasir}\n`;
+  struk += `${garis}\n`;
+
+  let total = 0, totalItem = 0;
+
+  for (let i = 0; i < barangEls.length; i++) {
+    const nama = barangEls[i].value || 'Item';
+    const jumlah = parseInt(jumlahEls[i].value || 0);
+    const harga = parseInt(hargaEls[i].value || 0);
+    const subtotal = jumlah * harga;
+    total += subtotal;
+    totalItem += jumlah;
+
+    struk += `${nama.substring(0, 18).padEnd(18)}\n`;
+    struk += `  ${jumlah} x ${harga.toLocaleString().padEnd(10)} = Rp${subtotal.toLocaleString()}\n`;
+  }
+
+  const ppn = 0;
+  const kembali = tunai - (total + ppn);
+
+  struk += `${garis}\n`;
+  struk += `Total Item   : ${totalItem}\n`;
+  struk += `Total Belanja: Rp${total.toLocaleString()}\n`;
+  struk += `PPN          : Rp${ppn.toLocaleString()}\n`;
+  struk += `Tunai        : Rp${tunai.toLocaleString()}\n`;
+  struk += `Kembalian    : Rp${kembali.toLocaleString()}\n`;
+  struk += `${garisTebal}\n`;
+  struk += `Terima kasih telah berbelanja!\n`;
+  struk += `Simpan struk ini sebagai bukti.\n`;
+
+  document.getElementById('strukPreview').textContent = struk;
+  simpanLocalStorage();
+}
+
+
+
+  function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const text = document.getElementById('strukPreview').textContent;
+  const lines = doc.splitTextToSize(text, 180);
+  doc.setFont('Courier', 'normal');
+  doc.setFontSize(10);
+  doc.text(lines, 10, 10);
+  doc.save("struk.pdf");
+}
+
+
+
+  function copyToClipboard() {
+    const text = document.getElementById('strukPreview').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Struk berhasil disalin ke clipboard!");
+    });
+  }
+
+  function resetAll() {
+    if (confirm("Yakin ingin menghapus semua data?")) {
+      localStorage.clear();
+      location.reload();
+    }
+  }
+
+  function simpanLocalStorage() {
+    const data = {
+      toko: document.getElementById('namaToko').value,
+      alamat: document.getElementById('alamatToko').value,
+      kasir: document.getElementById('namaKasir').value,
+      tunai: document.getElementById('tunai').value,
+      items: [...document.querySelectorAll('.item-row')].map(row => ({
+        barang: row.querySelector('.barang').value,
+        jumlah: row.querySelector('.jumlah').value,
+        harga: row.querySelector('.harga').value
+      }))
+    };
+    localStorage.setItem("dataStruk", JSON.stringify(data));
+  }
+
+  function loadData() {
+    const data = JSON.parse(localStorage.getItem("dataStruk"));
+    if (data) {
+      document.getElementById('namaToko').value = data.toko;
+      document.getElementById('alamatToko').value = data.alamat;
+      document.getElementById('namaKasir').value = data.kasir;
+      document.getElementById('tunai').value = data.tunai;
+      data.items.forEach(item => tambahItem(item.barang, item.jumlah, item.harga));
+    } else {
+      tambahItem();
+    }
+    buatStruk();
+  }
+
+  function mulaiScan() {
+    const scanner = new Html5Qrcode("scanner");
+    const config = { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.QR_CODE] };
+
+    scanner.start(
+      { facingMode: "environment" },
+      config,
+      (decodedText) => {
+        scanner.stop();
+        document.getElementById("scanner").innerHTML = "";
+        prosesBarcode(decodedText);
+      },
+      (error) => {}
+    ).catch(err => {
+      alert("Gagal akses kamera: " + err);
+    });
+  }
+async function printStrukBluetooth() {
+  const text = document.getElementById('strukPreview').textContent;
+  const encoder = new TextEncoder(); // Konversi ke bytes
+  const data = encoder.encode(text + "\n\n\n");
+
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'Printer' }],
+      optionalServices: [0x1101] // Serial Port Service Class UUID (umum untuk thermal printer)
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(0x1101);
+    const characteristic = await service.getCharacteristic(0x2A56); // Ini bisa berbeda tergantung printer
+
+    await characteristic.writeValue(data);
+    alert("Struk berhasil dikirim ke printer!");
+  } catch (error) {
+    alert("Gagal mencetak: " + error);
+  }
+}
+
+  function prosesBarcode(kode) {
+    const data = daftarBarang[kode];
+    if (data) {
+      let found = false;
+      document.querySelectorAll('.item-row').forEach(row => {
+        const nama = row.querySelector('.barang');
+        const jumlah = row.querySelector('.jumlah');
+        const harga = row.querySelector('.harga');
+        if (nama.value === data.nama && parseInt(harga.value) === data.harga) {
+          jumlah.value = parseInt(jumlah.value || 0) + 1;
+          found = true;
+        }
+      });
+      if (!found) tambahItem(data.nama, 1, data.harga);
+    } else {
+      alert("Barcode tidak dikenal. Silakan tambah barang secara manual.");
+    }
+    buatStruk();
+  }
+
+  loadData();
+</script>
+<script src="data-barang.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scan Barcode Produk</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f2f2f2;
+    }
+    #preview {
+      margin-top: 20px;
+    }
+    .item {
+      background: #fff;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-left: 5px solid #4caf50;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-top: 20px;
+      font-family: monospace;
+    }
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Scan Barcode Produk</h2>
+<div id="reader" style="width: 300px;"></div>
+
+<div>
+  <label>Nama Produk:</label><br>
+  <input type="text" id="nama"><br><br>
+
+  <label>Harga:</label><br>
+  <input type="number" id="harga"><br><br>
+
+  <button onclick="tambahProduk()">Tambahkan</button>
+</div>
+
+<div id="preview"></div>
+
+<h3>Hasil JSON</h3>
+<textarea id="output" readonly></textarea><br>
+<button onclick="salinClipboard()">Save</button>
+<button onclick="window.location.href='struck.html'">Input data</button>
+
+<script>
+  let daftarProduk = {};
+
+  function tambahProduk() {
+    const kode = lastScanned;
+    const nama = document.getElementById("nama").value;
+    const harga = document.getElementById("harga").value;
+
+    if (!kode || !nama || !harga) {
+      alert("Mohon lengkapi semua data.");
+      return;
+    }
+
+    daftarProduk[kode] = { nama: nama, harga: parseInt(harga) };
+    tampilkanProduk();
+    document.getElementById("nama").value = '';
+    document.getElementById("harga").value = '';
+  }
+
+  function tampilkanProduk() {
+    const preview = document.getElementById("preview");
+    const output = document.getElementById("output");
+    preview.innerHTML = '';
+    let jsonOutput = '';
+
+    for (const kode in daftarProduk) {
+      const item = daftarProduk[kode];
+      const teks = `"${kode}": { nama: "${item.nama}", harga: ${item.harga} },`;
+      jsonOutput += teks + "\n";
+
+      const div = document.createElement("div");
+      div.className = "item";
+      div.textContent = teks;
+      preview.appendChild(div);
+    }
+
+    output.value = jsonOutput.trim();
+  }
+
+  function salinClipboard() {
+  const json = JSON.stringify(daftarProduk, null, 2);
+  if (window.Android && window.Android.simpanData) {
+    window.Android.simpanData(json);
+    alert("Data disimpan ke data-barang.js!");
+  } else {
+    alert("Fungsi penyimpanan tidak tersedia.");
+  }
+}
+
+  let lastScanned = "";
+
+  const html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    },
+    (decodedText, decodedResult) => {
+      if (decodedText !== lastScanned) {
+        lastScanned = decodedText;
+        alert("Barcode terdeteksi: " + decodedText);
+      }
+    },
+    (errorMessage) => {
+      // skip error
+    }
+  ).catch((err) => {
+    console.error("Camera error: ", err);
+  });
+</script>
+
+</body>
+</html>
